@@ -39,7 +39,18 @@ class WebController extends Controller
 
         $lastUpdate = $data ? \Carbon\Carbon::parse($data->recorded_at)->format('d M Y, H:i:s') . ' WIB' : null;
 
-        return view('dashboard', compact('data', 'trendData', 'mulaiBerlaku', 'lastUpdate'));
+        // Cek apakah data kedaluwarsa (lebih dari 25 menit)
+        $AMBANG_KEDALUWARSA = 25; // menit
+        $dataBasi = false;
+        $menitBerlalu = null;
+        if ($data) {
+            $menitBerlalu = \Carbon\Carbon::parse($data->recorded_at)->diffInMinutes(now());
+            $dataBasi = $menitBerlalu > $AMBANG_KEDALUWARSA;
+        }
+
+        return view('dashboard', compact(
+            'data', 'trendData', 'mulaiBerlaku', 'lastUpdate', 'dataBasi', 'menitBerlalu'
+        ));
     }
 
     public function riwayat()
@@ -95,7 +106,7 @@ class WebController extends Controller
             ->get();
 
         $kelasLabel  = ['Tidak Hujan', 'Hujan Ringan', 'Hujan Sedang-Sangat Lebat'];
-        $statusLabel = ['Aman', 'Waspada', 'Awas', 'Evaluasi'];
+        $statusLabel = ['Aman', 'Waspada', 'Awas', 'Low Confidence'];
 
         $filename = 'sipedih_' . $dari . '_' . $sampai . '.csv';
 

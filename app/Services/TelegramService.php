@@ -89,4 +89,42 @@ class TelegramService
 
         return implode("\n", $baris);
     }
+
+    /**
+     * Pesan saat data terputus (tidak ada data masuk)
+     */
+    public function pesanDataPutus(int $menitTerakhir, ?string $waktuTerakhir): string
+    {
+        $baris = [];
+        $baris[] = "⚠️ <b>SISTEM PERINGATAN DINI HUJAN</b>";
+        $baris[] = "";
+        $baris[] = "🔌 <b>DATA TERPUTUS</b>";
+        $baris[] = "";
+        $baris[] = "Sistem tidak menerima data dari node pengamatan sejak {$menitTerakhir} menit lalu.";
+        if ($waktuTerakhir) {
+            $baris[] = "Data terakhir: {$waktuTerakhir} WIB";
+        }
+        $baris[] = "";
+        $baris[] = "ℹ️ Periksa kondisi perangkat (daya, jaringan, atau sensor).";
+
+        return implode("\n", $baris);
+    }
+
+    /**
+     * Pesan saat data kembali normal setelah terputus
+     */
+    public function pesanDataNormal(?string $waktuKembali): string
+    {
+        $baris = [];
+        $baris[] = "✅ <b>SISTEM PERINGATAN DINI HUJAN</b>";
+        $baris[] = "";
+        $baris[] = "🔗 <b>DATA NORMAL KEMBALI</b>";
+        $baris[] = "";
+        $baris[] = "Sistem kembali menerima data dari node pengamatan.";
+        if ($waktuKembali) {
+            $baris[] = "Pukul: {$waktuKembali} WIB";
+        }
+
+        return implode("\n", $baris);
+    }
 }

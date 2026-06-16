@@ -21,7 +21,7 @@ class PengamatanController extends Controller
         'Aman',
         'Waspada',
         'Awas',
-        'Evaluasi',
+        'Low Confidence',
     ];
 
     public function store(Request $request)

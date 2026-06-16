@@ -26,7 +26,7 @@ tbody tr:hover{background:#f8f9fd}
 @section('content')
 @php
     $kelasLabel  = ['Tidak Hujan','Hujan Ringan','Hujan Sedang–Sangat Lebat'];
-    $statusLabel = ['Aman','Waspada','Awas','Evaluasi'];
+    $statusLabel = ['Aman','Waspada','Awas','Low Confidence'];
 @endphp
 
 <div class="page-wrap">

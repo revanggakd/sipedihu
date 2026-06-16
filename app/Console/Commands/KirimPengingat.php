@@ -23,7 +23,7 @@ class KirimPengingat extends Command
         'Aman',
         'Waspada',
         'Awas',
-        'Evaluasi',
+        'Low Confidence',
     ];
 
     // Interval pengingat per status (menit)

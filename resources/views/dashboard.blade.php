@@ -39,6 +39,8 @@
 .bat-track{height:8px;background:#eef0fb;border-radius:4px;overflow:hidden;margin:.4rem 0 .25rem}
 .bat-fill{height:100%;border-radius:4px}
 .bat-labels{display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted)}
+.status-banner.offline{background:#eceef2;border-color:#cfd5e0}
+.status-banner.offline .status-val,.status-banner.offline .status-desc,.status-banner.offline .status-berlaku{color:#5a6577}
 </style>
 @endsection
 
@@ -62,6 +64,11 @@
 
     $sp  = $data && $data->status_peringatan !== null ? (int) $data->status_peringatan : 0;
     $smp = $statusMap[$sp] ?? $statusMap[0];
+
+    // Override tampilan kalau data basi
+    if ($dataBasi) {
+        $smp = ['label'=>'MENUNGGU DATA', 'desc'=>'Sistem belum menerima data terbaru', 'cls'=>'offline'];
+    }
 
     $c = $data ? (int) $data->pred_class : 0;
 
@@ -99,10 +106,14 @@
     <div class="status-label-small">Status Peringatan Dini</div>
     <div class="status-val">{{ $smp['label'] }}</div>
     <div class="status-desc">{{ $smp['desc'] }}</div>
-    @if($berlakuMulai && $berlakuSampai)
-    <div class="status-berlaku">
-      Berlaku {{ $berlakuMulai->format('H:i') }} – {{ $berlakuSampai->format('H:i') }} WIB
-    </div>
+    @if($dataBasi)
+      <div class="status-berlaku">
+        ⚠ Data terakhir {{ $menitBerlalu }} menit lalu
+      </div>
+    @elseif($berlakuMulai && $berlakuSampai)
+      <div class="status-berlaku">
+        Diperbarui {{ \Carbon\Carbon::parse($data->recorded_at)->format('H:i') }} — prediksi hingga {{ $berlakuSampai->format('H:i') }} WIB
+      </div>
     @endif
   </div>
 
