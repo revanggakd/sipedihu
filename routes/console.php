@@ -11,8 +11,11 @@ Artisan::command('inspire', function () {
 // Validasi prediksi tiap 10 menit
 Schedule::command('sipedih:validasi')->everyTenMinutes();
 
-// Pengingat status Waspada/Awas tiap 5 menit
+// Pengingat status tiap 5 menit
 Schedule::command('sipedih:pengingat')->everyFiveMinutes();
 
-// Cek koneksi data (putus/normal) tiap 5 menit
+// Cek koneksi data tiap 5 menit
 Schedule::command('sipedih:cek-koneksi')->everyFiveMinutes();
+
+// Bot listener — cek command masuk tiap menit
+Schedule::command('sipedih:bot-listen')->everyMinute();

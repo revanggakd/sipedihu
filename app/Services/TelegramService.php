@@ -127,4 +127,39 @@ class TelegramService
 
         return implode("\n", $baris);
     }
+
+    /**
+     * Ambil pesan masuk ke bot (polling).
+     * @param int $offset update_id terakhir + 1
+     */
+    public function getUpdates(int $offset = 0): array
+    {
+        try {
+            $response = Http::get("https://api.telegram.org/bot{$this->token}/getUpdates", [
+                'offset'  => $offset,
+                'timeout' => 0,
+            ]);
+            $json = $response->json();
+            return $json['result'] ?? [];
+        } catch (\Exception $e) {
+            Log::error('Telegram getUpdates gagal: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Kirim pesan ke chat ID tertentu (untuk balasan command)
+     */
+    public function kirimKe(string $chatId, string $pesan): void
+    {
+        try {
+            Http::post("https://api.telegram.org/bot{$this->token}/sendMessage", [
+                'chat_id'    => $chatId,
+                'text'       => $pesan,
+                'parse_mode' => 'HTML',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Telegram kirimKe gagal: ' . $e->getMessage());
+        }
+    }
 }
