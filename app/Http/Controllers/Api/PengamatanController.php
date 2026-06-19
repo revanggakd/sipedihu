@@ -9,6 +9,16 @@ use App\Services\SmoothingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
+/*
+============================================================
+  PengamatanController (API) — SIPEDIH 3 kelas
+
+  PERUBAHAN: dukung flag is_test dari firmware (mode injeksi/demo).
+   - Validasi 'is_test' (nullable boolean).
+   - Default false bila tidak dikirim (data produksi).
+   - Telegram TETAP terkirim untuk data uji (uji notifikasi end-to-end).
+============================================================
+*/
 class PengamatanController extends Controller
 {
     private array $kelasLabel = [
@@ -21,7 +31,6 @@ class PengamatanController extends Controller
         'Aman',
         'Waspada',
         'Awas',
-        'Low Confidence',
     ];
 
     public function store(Request $request)
@@ -40,9 +49,10 @@ class PengamatanController extends Controller
             'prob_light_rain'  => 'required|numeric|min:0|max:1',
             'prob_medium_rain' => 'required|numeric|min:0|max:1',
             'pred_class'       => 'required|integer|min:0|max:2',
-            'status'           => 'required|integer|min:0|max:3',
+            'status'           => 'required|integer|min:0|max:2',
             'battery_voltage'  => 'nullable|numeric',
             'battery_percent'  => 'nullable|numeric',
+            'is_test'          => 'nullable|boolean',
         ]);
 
         $smoothing = new SmoothingService();
@@ -53,9 +63,12 @@ class PengamatanController extends Controller
             ->first()?->status_peringatan;
 
         $validated['status_peringatan'] = $statusPeringatanBaru;
+        // Default false utk data produksi; true bila firmware kirim is_test (injeksi/demo)
+        $validated['is_test'] = (bool) ($validated['is_test'] ?? false);
         $data = Pengamatan::create($validated);
 
-        // Telegram jika status peringatan berubah
+        // Telegram jika status peringatan berubah.
+        // Tetap dikirim untuk data uji (is_test) agar notifikasi ikut teruji.
         if ($peringatanLama !== $statusPeringatanBaru) {
             $telegram = new TelegramService();
             $pesan = $telegram->pesanStatus(
@@ -73,6 +86,7 @@ class PengamatanController extends Controller
             'message'           => 'Data berhasil disimpan',
             'status_mentah'     => $data->status,
             'status_peringatan' => $statusPeringatanBaru,
+            'is_test'           => $data->is_test,
             'data'              => $data,
         ], 201);
     }

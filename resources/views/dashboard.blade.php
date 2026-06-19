@@ -6,15 +6,19 @@
 <style>
 .status-banner{border-radius:12px;padding:1.3rem 1.4rem;border:1px solid;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px}
 .status-banner.aman    {background:var(--aman-bg);border-color:var(--aman-border)}
-.status-banner.waspada {background:var(--bersiap-bg);border-color:var(--bersiap-border)}
+.status-banner.waspada {background:var(--waspada-bg);border-color:var(--waspada-border)}
 .status-banner.awas    {background:var(--awas-bg);border-color:var(--awas-border)}
 .status-label-small{font-size:.68rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;opacity:.65}
 .status-val{font-size:1.7rem;font-weight:600;letter-spacing:.03em;line-height:1.1}
 .status-desc{font-size:.82rem;opacity:.8}
+.status-kekuatan{font-size:.8rem;font-weight:600;margin-top:.15rem;display:flex;align-items:center;gap:6px}
+.kekuatan-dot{display:inline-flex;gap:3px}
+.kekuatan-dot i{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.25;font-style:normal}
+.kekuatan-dot i.on{opacity:1}
 .status-berlaku{font-size:.78rem;font-weight:600;font-family:'DM Mono',monospace;margin-top:.5rem;padding-top:.5rem;border-top:1px solid rgba(0,0,0,.07);width:100%;max-width:320px}
-.status-banner.aman .status-val,.status-banner.aman .status-desc,.status-banner.aman .status-berlaku{color:var(--aman)}
-.status-banner.waspada .status-val,.status-banner.waspada .status-desc,.status-banner.waspada .status-berlaku{color:var(--bersiap)}
-.status-banner.awas .status-val,.status-banner.awas .status-desc,.status-banner.awas .status-berlaku{color:var(--awas)}
+.status-banner.aman .status-val,.status-banner.aman .status-desc,.status-banner.aman .status-kekuatan,.status-banner.aman .status-berlaku{color:var(--aman)}
+.status-banner.waspada .status-val,.status-banner.waspada .status-desc,.status-banner.waspada .status-kekuatan,.status-banner.waspada .status-berlaku{color:var(--waspada)}
+.status-banner.awas .status-val,.status-banner.awas .status-desc,.status-banner.awas .status-kekuatan,.status-banner.awas .status-berlaku{color:var(--awas)}
 .sensor-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem}
 .sensor-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.9rem 1rem}
 .sensor-label{font-size:.68rem;font-weight:600;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.45rem}
@@ -23,14 +27,17 @@
 .mid-row{display:grid;grid-template-columns:1fr 1.6fr;gap:.85rem}
 .pred-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;font-size:.78rem;font-weight:600;margin-bottom:.85rem}
 .pred-badge.kelas-0{background:var(--aman-bg);color:var(--aman)}
-.pred-badge.kelas-1{background:var(--bersiap-bg);color:var(--bersiap)}
+.pred-badge.kelas-1{background:var(--waspada-bg);color:var(--waspada)}
 .pred-badge.kelas-2{background:var(--awas-bg);color:var(--awas)}
 .prob-row{margin-bottom:.55rem}
 .prob-header{display:flex;justify-content:space-between;margin-bottom:3px}
 .prob-name{font-size:.74rem;color:var(--text)}
+.prob-ambang{font-size:.66rem;color:var(--muted);margin-left:5px}
 .prob-pct{font-size:.74rem;font-weight:600;font-family:'DM Mono',monospace}
-.prob-track{height:5px;background:#eef0fb;border-radius:3px;overflow:hidden}
+.prob-track{height:5px;background:#eef0fb;border-radius:3px;overflow:hidden;position:relative}
 .prob-bar{height:100%;border-radius:3px}
+.prob-thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:#3a3f55;opacity:.55}
+.prob-detail-note{font-size:.66rem;color:var(--muted);margin-top:.6rem;line-height:1.4}
 .chart-wrap{position:relative;width:100%;height:175px}
 .bat-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem}
 .bat-row-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
@@ -60,7 +67,10 @@
         'Hujan Sedang–Sangat Lebat',
     ];
     $predBadgeKelas = ['kelas-0','kelas-1','kelas-2'];
-    $probColors = ['#1a7f52', '#b07d00', '#c02020'];
+    $probColors = ['#1a7f52', '#c25a00', '#c02020'];  // K1 selaras --waspada
+
+    // Threshold PR (samakan dgn firmware & receiver): K1, K2
+    $thr = [null, 0.2439, 0.1691];
 
     $sp  = $data && $data->status_peringatan !== null ? (int) $data->status_peringatan : 0;
     $smp = $statusMap[$sp] ?? $statusMap[0];
@@ -78,13 +88,25 @@
         $data->prob_medium_rain,
     ] : [0, 0, 0];
 
+    // Kekuatan sinyal: prob kelas aktif / threshold (Lemah/Sedang/Kuat)
+    // Hanya untuk status Waspada/Awas dan data tidak basi.
+    $kekuatan = null;       // null = tidak ditampilkan
+    $kekuatanLevel = 0;     // 1/2/3 untuk indikator titik
+    if ($data && !$dataBasi && $sp != 0) {
+        $rasio = $sp == 2 ? ($probs[2] / $thr[2]) : ($probs[1] / $thr[1]);
+        if ($rasio < 1.5)      { $kekuatan = 'Lemah';  $kekuatanLevel = 1; }
+        elseif ($rasio < 2.5)  { $kekuatan = 'Sedang'; $kekuatanLevel = 2; }
+        else                   { $kekuatan = 'Kuat';   $kekuatanLevel = 3; }
+    }
+
     $batPct = $data?->battery_percent ?? 0;
     $batCls = $batPct < 30 ? 'background:var(--awas)'
             : ($batPct < 60 ? 'background:var(--waspada)'
             : 'background:var(--aman)');
 
-    $berlakuMulai  = $mulaiBerlaku ? \Carbon\Carbon::parse($mulaiBerlaku) : null;
-    $berlakuSampai = $data ? \Carbon\Carbon::parse($data->recorded_at)->addHour() : null;
+    // recorded_at disimpan UTC -> tampilkan WIB
+    $recWib = $data ? \Carbon\Carbon::parse($data->recorded_at, 'UTC')->setTimezone('Asia/Jakarta') : null;
+    $berlakuSampai = $recWib ? $recWib->copy()->addHour() : null;
 @endphp
 
 <div class="page-wrap">
@@ -101,18 +123,30 @@
     @endif
   </div>
 
-  {{-- STATUS BANNER --}}
+  {{-- STATUS BANNER (berlapis: status -> kekuatan sinyal -> berlaku) --}}
   <div class="status-banner {{ $smp['cls'] }}">
     <div class="status-label-small">Status Peringatan Dini</div>
     <div class="status-val">{{ $smp['label'] }}</div>
     <div class="status-desc">{{ $smp['desc'] }}</div>
+
+    @if($kekuatan)
+      <div class="status-kekuatan">
+        Kekuatan sinyal: {{ $kekuatan }}
+        <span class="kekuatan-dot">
+          <i class="{{ $kekuatanLevel >= 1 ? 'on' : '' }}"></i>
+          <i class="{{ $kekuatanLevel >= 2 ? 'on' : '' }}"></i>
+          <i class="{{ $kekuatanLevel >= 3 ? 'on' : '' }}"></i>
+        </span>
+      </div>
+    @endif
+
     @if($dataBasi)
       <div class="status-berlaku">
         ⚠ Data terakhir {{ $menitBerlalu }} menit lalu
       </div>
-    @elseif($berlakuMulai && $berlakuSampai)
+    @elseif($recWib && $berlakuSampai)
       <div class="status-berlaku">
-        Diperbarui {{ \Carbon\Carbon::parse($data->recorded_at)->format('H:i') }} — prediksi hingga {{ $berlakuSampai->format('H:i') }} WIB
+        Diperbarui {{ $recWib->format('H:i') }} — prediksi hingga {{ $berlakuSampai->format('H:i') }} WIB
       </div>
     @endif
   </div>
@@ -143,20 +177,28 @@
       <div class="panel-title">Prediksi Model ML</div>
       <div class="pred-badge {{ $predBadgeKelas[$c] }}">{{ $kelasLabel[$c] }}</div>
       @foreach([
-          ['Tidak Hujan',               $probs[0], $probColors[0]],
-          ['Hujan Ringan',              $probs[1], $probColors[1]],
-          ['Hujan Sedang–Sangat Lebat', $probs[2], $probColors[2]],
-      ] as [$nama, $prob, $warna])
+          ['Tidak Hujan',               $probs[0], $probColors[0], $thr[0]],
+          ['Hujan Ringan',              $probs[1], $probColors[1], $thr[1]],
+          ['Hujan Sedang–Sangat Lebat', $probs[2], $probColors[2], $thr[2]],
+      ] as [$nama, $prob, $warna, $ambang])
       <div class="prob-row">
         <div class="prob-header">
-          <span class="prob-name">{{ $nama }}</span>
+          <span class="prob-name">
+            {{ $nama }}
+            @if($ambang)<span class="prob-ambang">ambang {{ round($ambang * 100) }}%</span>@endif
+          </span>
           <span class="prob-pct">{{ round($prob * 100) }}%</span>
         </div>
         <div class="prob-track">
           <div class="prob-bar" style="width:{{ round($prob * 100) }}%;background:{{ $warna }}"></div>
+          @if($ambang)<div class="prob-thr" style="left:{{ round($ambang * 100) }}%"></div>@endif
         </div>
       </div>
       @endforeach
+      <div class="prob-detail-note">
+        Angka di atas adalah probabilitas mentah model. Peringatan terpicu bila probabilitas
+        melewati ambang (garis penanda). Kekuatan sinyal mengukur seberapa jauh di atas ambang.
+      </div>
     </div>
 
     <div class="panel">
@@ -190,10 +232,8 @@
 <script>
 const trendData = @json($trendData ?? []);
 
-const labels = trendData.map(d => {
-  const t = new Date(d.recorded_at);
-  return t.getHours().toString().padStart(2, '0') + ':' + t.getMinutes().toString().padStart(2, '0');
-});
+// Label waktu sudah diformat WIB di server (field 'waktu')
+const labels = trendData.map(d => d.waktu);
 
 new Chart(document.getElementById('trendChart'), {
   data: {
@@ -227,7 +267,7 @@ new Chart(document.getElementById('trendChart'), {
         display: true, position: 'top', align: 'end',
         labels: { boxWidth: 10, boxHeight: 10, font: { size: 10, family: 'DM Sans' }, color: '#6b7aaa', padding: 8 }
       },
-      tooltip: { callbacks: { title: (items) => items.length ? items[0].label : '' } }
+      tooltip: { callbacks: { title: (items) => items.length ? items[0].label + ' WIB' : '' } }
     },
     scales: {
       x: { ticks: { font: { size: 10 }, color: '#8898cc', maxTicksLimit: 7 }, grid: { display: false } },

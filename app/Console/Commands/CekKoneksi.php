@@ -25,7 +25,7 @@ class CekKoneksi extends Command
             return self::SUCCESS;
         }
 
-        $menitTerakhir = Carbon::parse($data->recorded_at)->diffInMinutes(now());
+        $menitTerakhir = Carbon::parse($data->recorded_at, 'UTC')->diffInMinutes(now());
         $sedangPutus   = Cache::get('koneksi_putus', false);
 
         // ── DATA TERPUTUS ──
@@ -33,7 +33,7 @@ class CekKoneksi extends Command
             if (!$sedangPutus) {
                 // Baru terputus → kirim notif sekali
                 $telegram = new TelegramService();
-                $waktuTerakhir = Carbon::parse($data->recorded_at)->format('d M Y, H:i');
+                $waktuTerakhir = Carbon::parse($data->recorded_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i');
                 $telegram->kirim(
                     $telegram->pesanDataPutus((int) $menitTerakhir, $waktuTerakhir)
                 );
@@ -50,7 +50,7 @@ class CekKoneksi extends Command
         if ($sedangPutus) {
             // Sebelumnya putus, sekarang normal → kirim notif pemulihan
             $telegram = new TelegramService();
-            $waktuKembali = Carbon::parse($data->recorded_at)->format('d M Y, H:i');
+            $waktuKembali = Carbon::parse($data->recorded_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i');
             $telegram->kirim(
                 $telegram->pesanDataNormal($waktuKembali)
             );

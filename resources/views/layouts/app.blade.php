@@ -76,7 +76,6 @@ main{
 .pill-0{background:var(--aman-bg);color:var(--aman)}
 .pill-1{background:var(--bersiap-bg);color:var(--bersiap)}
 .pill-2{background:var(--awas-bg);color:var(--awas)}
-.pill-3{background:var(--evaluasi-bg);color:var(--evaluasi)}
 footer{text-align:center;padding:.65rem;font-size:.68rem;color:var(--muted);border-top:1px solid var(--border);background:#f9fafc}
 @yield('styles')
 </style>

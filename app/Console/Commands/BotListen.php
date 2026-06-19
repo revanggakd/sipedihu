@@ -77,11 +77,11 @@ class BotListen extends Command
             return "Belum ada data pengamatan.";
         }
 
-        $menitTerakhir = Carbon::parse($data->recorded_at)->diffInMinutes(now());
+        $menitTerakhir = Carbon::parse($data->recorded_at, 'UTC')->diffInMinutes(now());
 
         // Cek data basi
         if ($menitTerakhir > 25) {
-            return "⚠️ <b>DATA TERPUTUS</b>\n\nSistem tidak menerima data sejak {$menitTerakhir} menit lalu.\nData terakhir: " . Carbon::parse($data->recorded_at)->format('d M Y, H:i') . " WIB";
+            return "⚠️ <b>DATA TERPUTUS</b>\n\nSistem tidak menerima data sejak {$menitTerakhir} menit lalu.\nData terakhir: " . Carbon::parse($data->recorded_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i') . " WIB";
         }
 
         $sp = (int) ($data->status_peringatan ?? 0);
@@ -96,7 +96,7 @@ class BotListen extends Command
         $prediksi  = array_key_first($probs);
         $keyakinan = round(reset($probs) * 100);
 
-        $waktu = Carbon::parse($data->recorded_at)->format('d M Y, H:i');
+        $waktu = Carbon::parse($data->recorded_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d M Y, H:i');
 
         $baris = [];
         $baris[] = "🌧️ <b>STATUS TERKINI SIPEDIH</b>";

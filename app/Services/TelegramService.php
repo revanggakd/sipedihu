@@ -10,6 +10,10 @@ class TelegramService
     private string $token;
     private string $chatId;
 
+    // Threshold PR (samakan dgn firmware, receiver, dashboard)
+    private const THR_K1 = 0.2439;
+    private const THR_K2 = 0.1691;
+
     public function __construct()
     {
         $this->token  = config('services.telegram.token');
@@ -29,42 +33,80 @@ class TelegramService
         }
     }
 
+    public function kirimKe(string $chatId, string $pesan): void
+    {
+        try {
+            Http::post("https://api.telegram.org/bot{$this->token}/sendMessage", [
+                'chat_id'    => $chatId,
+                'text'       => $pesan,
+                'parse_mode' => 'HTML',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Telegram kirimKe gagal: ' . $e->getMessage());
+        }
+    }
+
+    public function getUpdates(int $offset = 0): array
+    {
+        try {
+            $response = Http::get("https://api.telegram.org/bot{$this->token}/getUpdates", [
+                'offset'  => $offset,
+                'timeout' => 0,
+            ]);
+            return $response->json()['result'] ?? [];
+        } catch (\Exception $e) {
+            Log::error('Telegram getUpdates gagal: ' . $e->getMessage());
+            return [];
+        }
+    }
+
     /**
-     * Susun pesan peringatan berdasarkan status peringatan resmi (0-2)
-     *
-     * @param bool $pengingat true = pesan pengingat berkala (status masih aktif)
+     * Kekuatan sinyal peringatan dari rasio prob/threshold.
+     * Status Aman -> null (tidak ditampilkan).
+     */
+    private function kekuatanSinyal(int $status, float $prob): ?string
+    {
+        if ($status === 0) return null;
+        $thr = $status === 2 ? self::THR_K2 : self::THR_K1;
+        if ($thr <= 0) return null;
+        $rasio = $prob / $thr;
+        if ($rasio < 1.5) return 'Lemah';
+        if ($rasio < 2.5) return 'Sedang';
+        return 'Kuat';
+    }
+
+    /**
+     * Susun pesan peringatan (status peringatan resmi 0-2)
      */
     public function pesanStatus(object $data, string $labelKelas, string $labelStatus, bool $pengingat = false): string
     {
         $status = (int) $data->status_peringatan;
 
-        $statusConfig = [
-            0 => ['emoji' => '🟢', 'label' => 'AMAN',    'aksi' => 'Tidak ada tindakan khusus diperlukan.'],
-            1 => ['emoji' => '🟡', 'label' => 'WASPADA', 'aksi' => 'Pantau perkembangan cuaca dan tetap waspada.'],
-            2 => ['emoji' => '🔴', 'label' => 'AWAS',    'aksi' => 'Segera lakukan tindakan keselamatan.'],
+        // emoji, label kelas (sesuai status), narasi, aksi
+        $cfg = [
+            0 => ['emoji'=>'🟢','label'=>'AMAN',    'kelas'=>'TIDAK HUJAN',                'narasi'=>'Kondisi cuaca normal. Tidak ada potensi hujan signifikan dalam 1 jam ke depan.', 'aksi'=>'Tidak ada tindakan khusus diperlukan.'],
+            1 => ['emoji'=>'🟡','label'=>'WASPADA', 'kelas'=>'HUJAN RINGAN',               'narasi'=>'Potensi hujan ringan dalam 1 jam ke depan.', 'aksi'=>'Pantau perkembangan cuaca dan tetap waspada.'],
+            2 => ['emoji'=>'🔴','label'=>'AWAS',    'kelas'=>'HUJAN SEDANG–SANGAT LEBAT',  'narasi'=>'Potensi hujan sedang hingga sangat lebat dalam 1 jam ke depan.', 'aksi'=>'Segera lakukan tindakan keselamatan.'],
         ];
-        $sc = $statusConfig[$status] ?? $statusConfig[0];
+        $c = $cfg[$status] ?? $cfg[0];
 
-        $probs = [
-            'TIDAK HUJAN'                => $data->prob_no_rain,
-            'HUJAN RINGAN'               => $data->prob_light_rain,
-            'HUJAN SEDANG–SANGAT LEBAT'  => $data->prob_medium_rain,
-        ];
-        arsort($probs);
-        $prediksi  = array_key_first($probs);
-        $keyakinan = round(reset($probs) * 100);
+        // prob kelas aktif (sesuai status) untuk kekuatan sinyal
+        $probAktif = match ($status) {
+            2 => $data->prob_medium_rain,
+            1 => $data->prob_light_rain,
+            default => $data->prob_no_rain,
+        };
+        $kekuatan = $this->kekuatanSinyal($status, (float) $probAktif);
 
-        $mulai   = \Carbon\Carbon::parse($data->recorded_at);
+        // waktu WIB (recorded_at disimpan UTC)
+        $mulai   = \Carbon\Carbon::parse($data->recorded_at, 'UTC')->setTimezone('Asia/Jakarta');
         $selesai = $mulai->copy()->addHour();
 
-        $bulan = [
-            1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
-            7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember',
-        ];
+        $bulan = [1=>'Januari',2=>'Februari',3=>'Maret',4=>'April',5=>'Mei',6=>'Juni',
+                  7=>'Juli',8=>'Agustus',9=>'September',10=>'Oktober',11=>'November',12=>'Desember'];
         $tglUpdate = $mulai->day . ' ' . $bulan[$mulai->month] . ' ' . $mulai->year
                    . ' | ' . $mulai->format('H.i') . ' WIB';
 
-        // Judul: pengingat atau peringatan biasa
         $judul = $pengingat
             ? "🔔 <b>PENGINGAT — PERINGATAN MASIH AKTIF</b>"
             : "🌧️ <b>SISTEM PERINGATAN DINI HUJAN</b>";
@@ -72,12 +114,14 @@ class TelegramService
         $baris = [];
         $baris[] = $judul;
         $baris[] = "";
-        $baris[] = "{$sc['emoji']} Status : <b>{$sc['label']}</b>";
-        $baris[] = "Prediksi : <b>{$prediksi}</b>";
-        $baris[] = "🎯 Keyakinan : {$keyakinan} %";
+        $baris[] = "{$c['emoji']} Status : <b>{$c['label']}</b>";
+        $baris[] = "Prediksi : <b>{$c['kelas']}</b>";
+        if ($kekuatan !== null) {
+            $baris[] = "📶 Kekuatan Sinyal : {$kekuatan}";
+        }
         $baris[] = "🕐 Masa Berlaku : {$mulai->format('H.i')} – {$selesai->format('H.i')} WIB";
         $baris[] = "";
-        $baris[] = "ℹ️ {$sc['aksi']}";
+        $baris[] = "ℹ️ {$c['aksi']}";
         $baris[] = "";
         $baris[] = "<b>Kondisi Saat Ini:</b>";
         $baris[] = "🌡️ Suhu : {$data->temp} °C";
@@ -90,9 +134,6 @@ class TelegramService
         return implode("\n", $baris);
     }
 
-    /**
-     * Pesan saat data terputus (tidak ada data masuk)
-     */
     public function pesanDataPutus(int $menitTerakhir, ?string $waktuTerakhir): string
     {
         $baris = [];
@@ -110,9 +151,6 @@ class TelegramService
         return implode("\n", $baris);
     }
 
-    /**
-     * Pesan saat data kembali normal setelah terputus
-     */
     public function pesanDataNormal(?string $waktuKembali): string
     {
         $baris = [];
@@ -126,40 +164,5 @@ class TelegramService
         }
 
         return implode("\n", $baris);
-    }
-
-    /**
-     * Ambil pesan masuk ke bot (polling).
-     * @param int $offset update_id terakhir + 1
-     */
-    public function getUpdates(int $offset = 0): array
-    {
-        try {
-            $response = Http::get("https://api.telegram.org/bot{$this->token}/getUpdates", [
-                'offset'  => $offset,
-                'timeout' => 0,
-            ]);
-            $json = $response->json();
-            return $json['result'] ?? [];
-        } catch (\Exception $e) {
-            Log::error('Telegram getUpdates gagal: ' . $e->getMessage());
-            return [];
-        }
-    }
-
-    /**
-     * Kirim pesan ke chat ID tertentu (untuk balasan command)
-     */
-    public function kirimKe(string $chatId, string $pesan): void
-    {
-        try {
-            Http::post("https://api.telegram.org/bot{$this->token}/sendMessage", [
-                'chat_id'    => $chatId,
-                'text'       => $pesan,
-                'parse_mode' => 'HTML',
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Telegram kirimKe gagal: ' . $e->getMessage());
-        }
     }
 }

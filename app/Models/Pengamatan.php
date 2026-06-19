@@ -27,6 +27,7 @@ class Pengamatan extends Model
         'sudah_validasi',
         'battery_voltage',
         'battery_percent',
+        'is_test',
     ];
 
     protected $casts = [
@@ -46,5 +47,6 @@ class Pengamatan extends Model
         'sudah_validasi'     => 'boolean',
         'battery_voltage'    => 'float',
         'battery_percent'    => 'float',
+        'is_test'            => 'boolean',
     ];
 }
