@@ -29,6 +29,8 @@ aside{
   padding:1.5rem 0;z-index:200;
 }
 .brand{padding:.25rem 1.25rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:.75rem}
+.brand{display:flex;align-items:center;gap:10px;padding:.25rem 1.25rem 1.25rem;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:.75rem}
+.brand-logo{width:45px;height:45px;object-fit:contain;flex-shrink:0}
 .brand-name{font-size:.9rem;font-weight:600;color:#fff;letter-spacing:.03em}
 .brand-sub{font-size:.65rem;color:rgba(255,255,255,.4);margin-top:2px}
 .nav-item{
@@ -84,8 +86,8 @@ footer{text-align:center;padding:.65rem;font-size:.68rem;color:var(--muted);bord
 
 <aside>
   <div class="brand">
-    <div class="brand-name">SIPEDIH</div>
-    <div class="brand-sub">Monitoring Cuaca</div>
+    <img src="{{ asset('img/stmkg_logo.png') }}" alt="STMKG" class="brand-logo">
+    <div class="brand-name">SIPEDIHU</div>
   </div>
   <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
     <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
@@ -107,7 +109,7 @@ footer{text-align:center;padding:.65rem;font-size:.68rem;color:var(--muted);bord
 
 <main>
   @yield('content')
-  <footer>SIPEDIH — Sistem Peringatan Dini Hujan &nbsp;|&nbsp; {{ date('Y') }}</footer>
+  <footer>SIPEDIHU — Sistem Peringatan Dini Hujan &nbsp;|&nbsp; {{ date('Y') }}</footer>
 </main>
 
 @yield('scripts')

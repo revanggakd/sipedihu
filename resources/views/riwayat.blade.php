@@ -80,6 +80,7 @@ tr.row-uji:hover{background:#fff4e3}
       </thead>
       <tbody>
         @forelse($riwayat as $row)
+        @php $rowWarmup = ($row->prob_no_rain + $row->prob_light_rain + $row->prob_medium_rain) == 0; @endphp
         <tr class="{{ $row->is_test ? 'row-uji' : '' }}">
           <td>{{ \Carbon\Carbon::parse($row->recorded_at, 'UTC')->setTimezone('Asia/Jakarta')->format('d/m/Y') }}</td>
           <td>{{ \Carbon\Carbon::parse($row->recorded_at, 'UTC')->setTimezone('Asia/Jakarta')->format('H:i:s') }}</td>
@@ -87,9 +88,19 @@ tr.row-uji:hover{background:#fff4e3}
           <td>{{ $row->humidity }}</td>
           <td>{{ $row->pressure }}</td>
           <td>{{ $row->rainfall }}</td>
-          <td><span class="pill pill-{{ $row->pred_class }}">{{ $kelasLabel[$row->pred_class] }}</span></td>
           <td>
-            <span class="pill pill-{{ $row->status }}">{{ $statusLabel[$row->status] ?? '-' }}</span>
+            @if($rowWarmup)
+              <span class="pill">—</span>
+            @else
+              <span class="pill pill-{{ $row->pred_class }}">{{ $kelasLabel[$row->pred_class] }}</span>
+            @endif
+          </td>
+          <td>
+            @if($rowWarmup)
+              <span class="pill">—</span>
+            @else
+              <span class="pill pill-{{ $row->status }}">{{ $statusLabel[$row->status] ?? '-' }}</span>
+            @endif
             @if($row->is_test)<span class="pill-uji">UJI</span>@endif
           </td>
         </tr>

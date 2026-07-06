@@ -29,6 +29,7 @@
 .pred-badge.kelas-0{background:var(--aman-bg);color:var(--aman)}
 .pred-badge.kelas-1{background:var(--waspada-bg);color:var(--waspada)}
 .pred-badge.kelas-2{background:var(--awas-bg);color:var(--awas)}
+.pred-badge.warmup{background:#eceef2;color:#5a6577}
 .prob-row{margin-bottom:.55rem}
 .prob-header{display:flex;justify-content:space-between;margin-bottom:3px}
 .prob-name{font-size:.74rem;color:var(--text)}
@@ -60,24 +61,28 @@
         2 => ['label'=>'AWAS',    'desc'=>'Potensi Hujan Sedang–Sangat Lebat','cls'=>'awas'],
     ];
 
-    // pred_class mentah untuk badge ML (3 kelas)
     $kelasLabel = [
         'Tidak Hujan',
         'Hujan Ringan',
         'Hujan Sedang–Sangat Lebat',
     ];
     $predBadgeKelas = ['kelas-0','kelas-1','kelas-2'];
-    $probColors = ['#1a7f52', '#c25a00', '#c02020'];  // K1 selaras --waspada
+    $probColors = ['#1a7f52', '#c25a00', '#c02020'];
 
-    // Threshold PR (samakan dgn firmware & receiver): K1, K2
+    // Threshold PR (samakan dgn firmware & receiver)
     $thr = [null, 0.2439, 0.1691];
+
+    // Deteksi warmup: prediksi serba-nol (model TX belum siap)
+    $isWarmup = $data && ($data->prob_no_rain + $data->prob_light_rain + $data->prob_medium_rain) == 0;
 
     $sp  = $data && $data->status_peringatan !== null ? (int) $data->status_peringatan : 0;
     $smp = $statusMap[$sp] ?? $statusMap[0];
 
-    // Override tampilan kalau data basi
+    // Override: basi > warmup > normal
     if ($dataBasi) {
         $smp = ['label'=>'MENUNGGU DATA', 'desc'=>'Sistem belum menerima data terbaru', 'cls'=>'offline'];
+    } elseif ($isWarmup) {
+        $smp = ['label'=>'—', 'desc'=>'Model sedang menyiapkan data', 'cls'=>'offline'];
     }
 
     $c = $data ? (int) $data->pred_class : 0;
@@ -89,10 +94,10 @@
     ] : [0, 0, 0];
 
     // Kekuatan sinyal: prob kelas aktif / threshold (Lemah/Sedang/Kuat)
-    // Hanya untuk status Waspada/Awas dan data tidak basi.
-    $kekuatan = null;       // null = tidak ditampilkan
-    $kekuatanLevel = 0;     // 1/2/3 untuk indikator titik
-    if ($data && !$dataBasi && $sp != 0) {
+    // Hanya untuk status Waspada/Awas, data tidak basi, dan bukan warmup.
+    $kekuatan = null;
+    $kekuatanLevel = 0;
+    if ($data && !$dataBasi && !$isWarmup && $sp != 0) {
         $rasio = $sp == 2 ? ($probs[2] / $thr[2]) : ($probs[1] / $thr[1]);
         if ($rasio < 1.5)      { $kekuatan = 'Lemah';  $kekuatanLevel = 1; }
         elseif ($rasio < 2.5)  { $kekuatan = 'Sedang'; $kekuatanLevel = 2; }
@@ -123,7 +128,7 @@
     @endif
   </div>
 
-  {{-- STATUS BANNER (berlapis: status -> kekuatan sinyal -> berlaku) --}}
+  {{-- STATUS BANNER --}}
   <div class="status-banner {{ $smp['cls'] }}">
     <div class="status-label-small">Status Peringatan Dini</div>
     <div class="status-val">{{ $smp['label'] }}</div>
@@ -143,6 +148,10 @@
     @if($dataBasi)
       <div class="status-berlaku">
         ⚠ Data terakhir {{ $menitBerlalu }} menit lalu
+      </div>
+    @elseif($isWarmup)
+      <div class="status-berlaku">
+        Mengumpulkan data awal — prediksi belum tersedia
       </div>
     @elseif($recWib && $berlakuSampai)
       <div class="status-berlaku">
@@ -175,7 +184,11 @@
   <div class="mid-row">
     <div class="panel">
       <div class="panel-title">Prediksi Model ML</div>
-      <div class="pred-badge {{ $predBadgeKelas[$c] }}">{{ $kelasLabel[$c] }}</div>
+      @if($isWarmup)
+        <div class="pred-badge warmup">Model menyiapkan data</div>
+      @else
+        <div class="pred-badge {{ $predBadgeKelas[$c] }}">{{ $kelasLabel[$c] }}</div>
+      @endif
       @foreach([
           ['Tidak Hujan',               $probs[0], $probColors[0], $thr[0]],
           ['Hujan Ringan',              $probs[1], $probColors[1], $thr[1]],
@@ -187,10 +200,10 @@
             {{ $nama }}
             @if($ambang)<span class="prob-ambang">ambang {{ round($ambang * 100) }}%</span>@endif
           </span>
-          <span class="prob-pct">{{ round($prob * 100) }}%</span>
+          <span class="prob-pct">{{ $isWarmup ? '—' : round($prob * 100).'%' }}</span>
         </div>
         <div class="prob-track">
-          <div class="prob-bar" style="width:{{ round($prob * 100) }}%;background:{{ $warna }}"></div>
+          <div class="prob-bar" style="width:{{ $isWarmup ? 0 : round($prob * 100) }}%;background:{{ $warna }}"></div>
           @if($ambang)<div class="prob-thr" style="left:{{ round($ambang * 100) }}%"></div>@endif
         </div>
       </div>
@@ -231,8 +244,6 @@
 @section('scripts')
 <script>
 const trendData = @json($trendData ?? []);
-
-// Label waktu sudah diformat WIB di server (field 'waktu')
 const labels = trendData.map(d => d.waktu);
 
 new Chart(document.getElementById('trendChart'), {

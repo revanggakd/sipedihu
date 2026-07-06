@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\Cache;
 ============================================================
   PengamatanController (API) — SIPEDIH 3 kelas
 
-  PERUBAHAN: dukung flag is_test dari firmware (mode injeksi/demo).
-   - Validasi 'is_test' (nullable boolean).
-   - Default false bila tidak dikirim (data produksi).
-   - Telegram TETAP terkirim untuk data uji (uji notifikasi end-to-end).
+   - is_test: data injeksi/demo (disimpan, difilter di tampilan/export).
+   - is_warmup: model TX belum siap. Paksa status_peringatan = 0,
+     LEWATI smoothing & Telegram. TIDAK disimpan ke kolom DB
+     (dideteksi di tampilan via prob serba-nol).
 ============================================================
 */
 class PengamatanController extends Controller
@@ -53,23 +53,38 @@ class PengamatanController extends Controller
             'battery_voltage'  => 'nullable|numeric',
             'battery_percent'  => 'nullable|numeric',
             'is_test'          => 'nullable|boolean',
+            'is_warmup'        => 'nullable|boolean',
         ]);
 
-        $smoothing = new SmoothingService();
-        $statusPeringatanBaru = $smoothing->hitungStatusPeringatan((int) $validated['status']);
+        // Dibaca terpisah; TIDAK disimpan ke kolom DB (kolom tidak ada).
+        $isWarmup = $request->boolean('is_warmup');
 
         $peringatanLama = Pengamatan::whereNotNull('status_peringatan')
             ->latest('recorded_at')
             ->first()?->status_peringatan;
 
+        if ($isWarmup) {
+            // Model TX belum siap: prediksi serba-nol BUKAN "Aman" yang sah.
+            // Paksa 0 (memutus hysteresis yang bisa menahan alert lama),
+            // dan lewati smoothing sepenuhnya.
+            $statusPeringatanBaru = 0;
+        } else {
+            $smoothing = new SmoothingService();
+            $statusPeringatanBaru = $smoothing->hitungStatusPeringatan((int) $validated['status']);
+        }
+
         $validated['status_peringatan'] = $statusPeringatanBaru;
-        // Default false utk data produksi; true bila firmware kirim is_test (injeksi/demo)
         $validated['is_test'] = (bool) ($validated['is_test'] ?? false);
+
+        // Jangan simpan is_warmup ke kolom DB (kolom sudah dihapus).
+        unset($validated['is_warmup']);
+
         $data = Pengamatan::create($validated);
 
         // Telegram jika status peringatan berubah.
-        // Tetap dikirim untuk data uji (is_test) agar notifikasi ikut teruji.
-        if ($peringatanLama !== $statusPeringatanBaru) {
+        // TIDAK dikirim saat warmup (hindari notifikasi "turun ke Aman"
+        // yang dipicu pembersihan alarm hantu, bukan perubahan cuaca nyata).
+        if (!$isWarmup && $peringatanLama !== $statusPeringatanBaru) {
             $telegram = new TelegramService();
             $pesan = $telegram->pesanStatus(
                 $data,
@@ -78,7 +93,6 @@ class PengamatanController extends Controller
             );
             $telegram->kirim($pesan);
 
-            // Reset timer pengingat — mulai hitung dari sekarang
             Cache::put('pengingat_terakhir', now()->toDateTimeString(), now()->addDay());
         }
 
@@ -87,6 +101,7 @@ class PengamatanController extends Controller
             'status_mentah'     => $data->status,
             'status_peringatan' => $statusPeringatanBaru,
             'is_test'           => $data->is_test,
+            'is_warmup'         => $isWarmup,
             'data'              => $data,
         ], 201);
     }
