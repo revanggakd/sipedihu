@@ -24,7 +24,10 @@
 .sensor-label{font-size:.68rem;font-weight:600;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.45rem}
 .sensor-val{font-family:'DM Mono',monospace;font-size:1.55rem;font-weight:500;color:var(--text);line-height:1}
 .sensor-unit{font-size:.75rem;color:var(--muted);font-weight:400;margin-left:2px}
-.mid-row{display:grid;grid-template-columns:1fr 1.5fr .7fr;gap:.85rem}
+.mid-row{display:grid;grid-template-columns:1fr 1.6fr;gap:.85rem;align-items:stretch}
+.mid-left{display:flex;flex-direction:column;gap:.7rem}
+.chart-panel{display:flex;flex-direction:column;height:100%}
+.chart-panel .chart-wrap{flex:1;position:relative;width:100%;min-height:200px}
 .pred-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;font-size:.78rem;font-weight:600;margin-bottom:.85rem}
 .pred-badge.kelas-0{background:var(--aman-bg);color:var(--aman)}
 .pred-badge.kelas-1{background:var(--waspada-bg);color:var(--waspada)}
@@ -39,13 +42,12 @@
 .prob-bar{height:100%;border-radius:3px}
 .prob-thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:#3a3f55;opacity:.55}
 .prob-detail-note{font-size:.66rem;color:var(--muted);margin-top:.6rem;line-height:1.4}
-.chart-wrap{position:relative;width:100%;height:175px}
-.bat-mini{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem .9rem;display:flex;flex-direction:column}
-.bat-mini-title{font-size:.68rem;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.9rem}
-.bat-mini-val{font-family:'DM Mono',monospace;font-size:1.5rem;font-weight:500;color:var(--text);line-height:1}
-.bat-mini-volt{font-family:'DM Mono',monospace;font-size:.8rem;color:var(--muted);margin-top:.2rem}
-.bat-mini-track{height:7px;background:#eef0fb;border-radius:4px;overflow:hidden;margin-top:auto}
-.bat-mini-fill{height:100%;border-radius:4px}
+.bat-panel-sm{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:.75rem 1rem}
+.bat-sm-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:.45rem}
+.bat-sm-title{font-size:.68rem;font-weight:600;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.bat-sm-val{font-family:'DM Mono',monospace;font-size:.8rem;font-weight:500;color:var(--text)}
+.bat-track{height:8px;background:#eef0fb;border-radius:4px;overflow:hidden}
+.bat-fill{height:100%;border-radius:4px}
 .status-banner.offline{background:#eceef2;border-color:#cfd5e0}
 .status-banner.offline .status-val,.status-banner.offline .status-desc,.status-banner.offline .status-berlaku{color:#5a6577}
 
@@ -54,6 +56,7 @@
   .sensor-grid{grid-template-columns:repeat(2,1fr)}
   .mid-row{grid-template-columns:1fr;gap:.7rem}
   .mid-left{gap:.7rem}
+  .chart-panel .chart-wrap{min-height:180px}
   .status-val{font-size:1.3rem}
   .sensor-val{font-size:1.2rem}
   .chart-panel .chart-wrap{min-height:200px}
@@ -201,54 +204,62 @@
     </div>
   </div>
 
-  {{-- MID ROW: Prediksi | Grafik | Baterai --}}
+  {{-- MID ROW: [Prediksi + Baterai] | [Grafik stretch] --}}
   <div class="mid-row">
-    <div class="panel">
-      <div class="panel-title">Prediksi Model ML</div>
-      @if($isWarmup)
-        <div class="pred-badge warmup">Model menyiapkan data</div>
-      @else
-        <div class="pred-badge {{ $predBadgeKelas[$c] }}">{{ $kelasLabel[$c] }}</div>
-      @endif
-      @foreach([
-          ['Tidak Hujan',               $probs[0], $probColors[0], $thr[0]],
-          ['Hujan Ringan',              $probs[1], $probColors[1], $thr[1]],
-          ['Hujan Sedang–Sangat Lebat', $probs[2], $probColors[2], $thr[2]],
-      ] as [$nama, $prob, $warna, $ambang])
-      <div class="prob-row">
-        <div class="prob-header">
-          <span class="prob-name">
-            {{ $nama }}
-            @if($ambang)<span class="prob-ambang">ambang {{ round($ambang * 100) }}%</span>@endif
-          </span>
-          <span class="prob-pct">{{ $isWarmup ? '—' : round($prob * 100).'%' }}</span>
+    <div class="mid-left">
+      {{-- Prediksi Model ML --}}
+      <div class="panel">
+        <div class="panel-title">Prediksi Model ML</div>
+        @if($isWarmup)
+          <div class="pred-badge warmup">Model menyiapkan data</div>
+        @else
+          <div class="pred-badge {{ $predBadgeKelas[$c] }}">{{ $kelasLabel[$c] }}</div>
+        @endif
+        @foreach([
+            ['Tidak Hujan',               $probs[0], $probColors[0], $thr[0]],
+            ['Hujan Ringan',              $probs[1], $probColors[1], $thr[1]],
+            ['Hujan Sedang–Sangat Lebat', $probs[2], $probColors[2], $thr[2]],
+        ] as [$nama, $prob, $warna, $ambang])
+        <div class="prob-row">
+          <div class="prob-header">
+            <span class="prob-name">
+              {{ $nama }}
+              @if($ambang)<span class="prob-ambang">ambang {{ round($ambang * 100) }}%</span>@endif
+            </span>
+            <span class="prob-pct">{{ $isWarmup ? '—' : round($prob * 100).'%' }}</span>
+          </div>
+          <div class="prob-track">
+            <div class="prob-bar" style="width:{{ $isWarmup ? 0 : round($prob * 100) }}%;background:{{ $warna }}"></div>
+            @if($ambang)<div class="prob-thr" style="left:{{ round($ambang * 100) }}%"></div>@endif
+          </div>
         </div>
-        <div class="prob-track">
-          <div class="prob-bar" style="width:{{ $isWarmup ? 0 : round($prob * 100) }}%;background:{{ $warna }}"></div>
-          @if($ambang)<div class="prob-thr" style="left:{{ round($ambang * 100) }}%"></div>@endif
+        @endforeach
+        <div class="prob-detail-note">
+          Probabilitas mentah model. Peringatan terpicu bila melewati ambang (garis penanda).
+          Kekuatan sinyal mengukur seberapa jauh di atas ambang.
         </div>
       </div>
-      @endforeach
-      <div class="prob-detail-note">
-        Angka di atas adalah probabilitas mentah model. Peringatan terpicu bila probabilitas
-        melewati ambang (garis penanda). Kekuatan sinyal mengukur seberapa jauh di atas ambang.
+
+      {{-- Baterai VRLA (card kecil di bawah Prediksi) --}}
+      <div class="bat-panel-sm">
+        <div class="bat-sm-head">
+          <span class="bat-sm-title">Baterai VRLA</span>
+          <span class="bat-sm-val">
+            {{ $data?->battery_voltage ? number_format($data->battery_voltage, 2).' V' : '—' }}
+            &middot; {{ $data ? round($batPct).'%' : '—' }}
+          </span>
+        </div>
+        <div class="bat-track">
+          <div class="bat-fill" style="width:{{ round($batPct) }}%;{{ $batCls }}"></div>
+        </div>
       </div>
     </div>
 
-    <div class="panel">
+    {{-- Grafik stretch mengisi tinggi kolom kiri --}}
+    <div class="panel chart-panel">
       <div class="panel-title">Tren 1 Jam Terakhir</div>
       <div class="chart-wrap">
         <canvas id="trendChart" role="img" aria-label="Grafik tren suhu, kelembapan, dan curah hujan"></canvas>
-      </div>
-    </div>
-
-    {{-- BATERAI MINI (kanan grafik) --}}
-    <div class="bat-mini">
-      <div class="bat-mini-title">Baterai VRLA</div>
-      <div class="bat-mini-val">{{ $data ? round($batPct).'%' : '—' }}</div>
-      <div class="bat-mini-volt">{{ $data?->battery_voltage ? number_format($data->battery_voltage, 2).' V' : '—' }}</div>
-      <div class="bat-mini-track">
-        <div class="bat-mini-fill" style="width:{{ round($batPct) }}%;{{ $batCls }}"></div>
       </div>
     </div>
   </div>
