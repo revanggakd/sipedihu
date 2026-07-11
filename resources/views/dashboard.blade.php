@@ -24,7 +24,7 @@
 .sensor-label{font-size:.68rem;font-weight:600;color:var(--muted);letter-spacing:.07em;text-transform:uppercase;margin-bottom:.45rem}
 .sensor-val{font-family:'DM Mono',monospace;font-size:1.55rem;font-weight:500;color:var(--text);line-height:1}
 .sensor-unit{font-size:.75rem;color:var(--muted);font-weight:400;margin-left:2px}
-.mid-row{display:grid;grid-template-columns:1fr 1.6fr;gap:.85rem}
+.mid-row{display:grid;grid-template-columns:1fr 1.5fr .7fr;gap:.85rem}
 .pred-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;font-size:.78rem;font-weight:600;margin-bottom:.85rem}
 .pred-badge.kelas-0{background:var(--aman-bg);color:var(--aman)}
 .pred-badge.kelas-1{background:var(--waspada-bg);color:var(--waspada)}
@@ -40,15 +40,36 @@
 .prob-thr{position:absolute;top:-2px;bottom:-2px;width:2px;background:#3a3f55;opacity:.55}
 .prob-detail-note{font-size:.66rem;color:var(--muted);margin-top:.6rem;line-height:1.4}
 .chart-wrap{position:relative;width:100%;height:175px}
-.bat-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem 1.1rem}
-.bat-row-info{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
-.bat-kv{font-size:.78rem;color:var(--muted)}
-.bat-val{font-family:'DM Mono',monospace;font-size:.78rem;font-weight:500}
-.bat-track{height:8px;background:#eef0fb;border-radius:4px;overflow:hidden;margin:.4rem 0 .25rem}
-.bat-fill{height:100%;border-radius:4px}
-.bat-labels{display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted)}
+.bat-mini{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem .9rem;display:flex;flex-direction:column}
+.bat-mini-title{font-size:.68rem;font-weight:600;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:.9rem}
+.bat-mini-val{font-family:'DM Mono',monospace;font-size:1.5rem;font-weight:500;color:var(--text);line-height:1}
+.bat-mini-volt{font-family:'DM Mono',monospace;font-size:.8rem;color:var(--muted);margin-top:.2rem}
+.bat-mini-track{height:7px;background:#eef0fb;border-radius:4px;overflow:hidden;margin-top:auto}
+.bat-mini-fill{height:100%;border-radius:4px}
 .status-banner.offline{background:#eceef2;border-color:#cfd5e0}
 .status-banner.offline .status-val,.status-banner.offline .status-desc,.status-banner.offline .status-berlaku{color:#5a6577}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width:768px){
+  .sensor-grid{grid-template-columns:repeat(2,1fr)}
+  .mid-row{grid-template-columns:1fr;gap:.7rem}
+  .mid-left{gap:.7rem}
+  .status-val{font-size:1.3rem}
+  .sensor-val{font-size:1.2rem}
+  .chart-panel .chart-wrap{min-height:200px}
+  .page-head{flex-direction:column;gap:.5rem;align-items:flex-start}
+  .page-update{text-align:left}
+  .status-berlaku{font-size:.72rem}
+}
+@media (max-width:480px){
+  .sensor-grid{grid-template-columns:repeat(2,1fr);gap:.6rem}
+  .sensor-card{padding:.75rem .8rem}
+  .sensor-val{font-size:1.1rem}
+  .status-val{font-size:1.15rem}
+  .prob-name{font-size:.7rem}
+  .bat-sm-val{font-size:.7rem}
+  .page-wrap{padding:.75rem}
+}
 </style>
 @endsection
 
@@ -180,7 +201,7 @@
     </div>
   </div>
 
-  {{-- MID ROW --}}
+  {{-- MID ROW: Prediksi | Grafik | Baterai --}}
   <div class="mid-row">
     <div class="panel">
       <div class="panel-title">Prediksi Model ML</div>
@@ -220,23 +241,16 @@
         <canvas id="trendChart" role="img" aria-label="Grafik tren suhu, kelembapan, dan curah hujan"></canvas>
       </div>
     </div>
-  </div>
 
-  {{-- BATERAI --}}
-  <div class="bat-panel">
-    <div class="panel-title">Status Baterai VRLA</div>
-    <div class="bat-row-info">
-      <span class="bat-kv">Tegangan</span>
-      <span class="bat-val">{{ $data?->battery_voltage ? number_format($data->battery_voltage, 2).' V' : '—' }}</span>
+    {{-- BATERAI MINI (kanan grafik) --}}
+    <div class="bat-mini">
+      <div class="bat-mini-title">Baterai VRLA</div>
+      <div class="bat-mini-val">{{ $data ? round($batPct).'%' : '—' }}</div>
+      <div class="bat-mini-volt">{{ $data?->battery_voltage ? number_format($data->battery_voltage, 2).' V' : '—' }}</div>
+      <div class="bat-mini-track">
+        <div class="bat-mini-fill" style="width:{{ round($batPct) }}%;{{ $batCls }}"></div>
+      </div>
     </div>
-    <div class="bat-row-info">
-      <span class="bat-kv">Estimasi Kapasitas</span>
-      <span class="bat-val">{{ $data ? round($batPct).'%' : '—' }}</span>
-    </div>
-    <div class="bat-track">
-      <div class="bat-fill" style="width:{{ round($batPct) }}%;{{ $batCls }}"></div>
-    </div>
-    <div class="bat-labels"><span>0%</span><span>100%</span></div>
   </div>
 </div>
 @endsection
