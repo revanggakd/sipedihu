@@ -57,7 +57,7 @@
     </button>
 
     <div class="info-box">
-      Rentang maksimal 31 hari. Data uji/demo tidak disertakan dalam ekspor.
+      Rentang maksimal 31 hari.
       File CSV dapat dibuka di Microsoft Excel atau Google Sheets.
     </div>
 
@@ -106,8 +106,7 @@
     var selisihHari = Math.floor((tglSelesai - tglMulai) / (1000 * 60 * 60 * 24)) + 1;
     if (selisihHari > 31) {
       tampilkanError(
-        'Rentang melebihi 31 hari (saat ini ' + selisihHari + ' hari). ' +
-        'Mohon persempit rentang tanggal.'
+        'Rentang melebihi 31 hari (saat ini ' + selisihHari + ' hari). '
       );
       return;
     }
